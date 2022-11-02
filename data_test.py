@@ -7,9 +7,30 @@ Created on Sat Oct 29 09:23:15 2022
 """
 
 import data
+from lib.gp import gp_ensamble
+import matplotlib.pyplot as plt
+import pickle
+
+#%%
 
 data_obj = data.dakota_data()
 data_obj.process()
 
-data_obj.dakota_data
 
+gp = gp_ensamble(
+    Xtrain = data_obj.Xtrain.values,
+    ytrain = data_obj.ytrain.values,
+    use_cv_alpha=True
+    )   
+
+gp.fit()
+
+#%%
+
+pred = gp.predict(data_obj.Xtest.values)
+plt.plot(data_obj.ytest,pred,'+')
+
+#%%
+
+with open('gp.p','wb') as f:
+    pickle.dump([gp,data_obj],f)

@@ -90,6 +90,13 @@ class gp_ensamble():
         #Return
         return J
     
+    def sample_y(self,X):
+        
+        gps = self.gps 
+        
+        samples = np.column_stack([gp.sample_y(X) for gp in gps])
+        
+        return samples
     
     def fit(self):
         

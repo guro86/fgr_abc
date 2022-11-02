@@ -27,21 +27,24 @@ class dakota_data():
         self.train_test_split_kwargs = \
             kwargs.get('train_test_split_kwargs',{})
             
-        self.n_xvars = 5
+        x_vars = ['diff','gb_saturation','gb_sweeping','ath','crack']
+        
+        self.x_vars = kwargs.get('x_vars',x_vars)
         
     def process(self):
 
         #Get base path
         path = self.path
         
+        #x_vars
+        x_vars = self.x_vars
+        
         train_test_split_kwargs = self.train_test_split_kwargs
 
         #Get filenames 
         dakota_file = self.dakota_file
         meas_file = self.meas_file
-        
-        n_xvars = self.n_xvars
-        
+                
         #Generate file paths
         dakota_file_path = os.sep.join((path,dakota_file))
         meas_file_path = os.sep.join((path,meas_file))
@@ -57,8 +60,8 @@ class dakota_data():
             index_col=0
             )
         
-        X = dakota_data.iloc[:,:n_xvars]
-        y = dakota_data.iloc[:,n_xvars:]
+        X = dakota_data[x_vars]
+        y = dakota_data.drop(x_vars,axis=1)
         
         
         self.meas = meas
@@ -66,26 +69,25 @@ class dakota_data():
         
         
         # #Used kr-xe if not nan, else use xe
-        # meas['fgr'] = meas['kr-xe'].fillna(meas['xe'])
+        meas['fgr'] = meas['kr_xe'].fillna(meas['xe'])
         
         # #Reorder base on tu_data order
-        # meas_v = meas.loc[tu_data.columns,'fgr'].values / 100
+        meas_v = meas.loc[y.columns,'fgr'].values / 100
 
         
         #Spliting X and y samples in train and test data sets
-        # Xtrain, Xtest, ytrain, ytest = train_test_split(
-        #     samples,
-        #     tu_data,
-        #     **train_test_split_kwargs,
-        #     #random_state = 100 #Fixing random state now, can be removed
-        #     )
+        Xtrain, Xtest, ytrain, ytest = train_test_split(
+            X,
+            y,
+            **train_test_split_kwargs,
+            )
         
         
         #Store data 
-        # self.Xtrain = Xtrain
-        # self.Xtest = Xtest
-        # self.ytrain = ytrain
-        # self.ytest = ytest
+        self.Xtrain = Xtrain
+        self.Xtest = Xtest
+        self.ytrain = ytrain
+        self.ytest = ytest
         
-        # self.meas_v = meas_v
-        # self.meas = meas
+        self.meas_v = meas_v
+        self.meas = meas

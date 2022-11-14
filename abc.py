@@ -34,9 +34,10 @@ plt.plot(data_obj.meas_v,res,'o')
 #Test of sampling
 gp.sample_y(data_obj.Xtest.values)
 
+#%%
 
 def model(params):
-     
+        
     X =  np.array([params[x] for x in data_obj.Xtrain.columns])
     
     y = gp.sample_y(X[None,:]).flatten() 

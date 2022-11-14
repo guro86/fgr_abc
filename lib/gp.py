@@ -7,8 +7,7 @@ Created on Fri Feb  4 09:20:27 2022
 """
 
 from sklearn.gaussian_process import GaussianProcessRegressor as GPR
-from sklearn.gaussian_process.kernels import RBF, Matern
-from sklearn.linear_model import LinearRegression
+from sklearn.gaussian_process.kernels import RBF
 import numpy as np
 from sklearn.model_selection import RandomizedSearchCV
 from scipy.stats import uniform
@@ -46,18 +45,8 @@ class gp_ensamble():
         #Get gps
         gps = self.gps 
         
-        use_lr_mean = self.use_lr_mean
-                
-        lr_means = self.lr_means
-        
-        if use_lr_mean:
             
-            pred = np.column_stack([gp.predict(X) + lr.predict(X) for lr,gp \
-                                    in zip(lr_means,gps)])
-            
-        else:
-            
-            pred = np.column_stack([gp.predict(X) for gp in gps])
+        pred = np.column_stack([gp.predict(X) for gp in gps])
         
         
         #If std is requested
@@ -104,7 +93,6 @@ class gp_ensamble():
         Xtrain = self.Xtrain
         ytrain = self.ytrain
         
-        use_lr_mean = self.use_lr_mean
         use_cv_alpha = self.use_cv_alpha
         
         n_jobs_alpha = self.n_jobs_alpha
@@ -120,21 +108,11 @@ class gp_ensamble():
         #A list of one gp per output dimension
         gps = [self._factory() for i in range(ytrain.shape[-1])]
        
-        if use_lr_mean:
-            lr_means = [LinearRegression() for i in range(ytrain.shape[-1])] 
        
         for i,gp in enumerate(gps): 
             
             ytrain_i = ytrain[:,i]
-            
-            if use_lr_mean:
                 
-                lr_means[i].fit(
-                    Xtrain,ytrain_i
-                    )
-                
-                ytrain_i = ytrain_i - lr_means[i].predict(Xtrain)
-            
             
             if use_cv_alpha:
                 
@@ -158,12 +136,8 @@ class gp_ensamble():
                 gp.fit(
                     Xtrain,
                     ytrain_i
-                    )
-                
+                    )                
 
-        if use_lr_mean:
-            self.lr_means = lr_means
- 
         #Store trained gps
         self.gps = gps
 
@@ -229,9 +203,7 @@ class my_gp(GPR):
         
         #Use kernel and diffs to evaluate ks
         ks = kernel(Xtrain,X) * diff / l**2
-        
-        print(ks.shape)
-                        
+                                
         #Calculate derivative 
         der = ks.transpose(0,2,1) @ alpha 
         

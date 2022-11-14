@@ -32,8 +32,22 @@ prior = uniform(loc = lb, scale = ub - lb)
 
 #%%
 
-def logp(X):
-        
+
+def pred(params,pos,default):
+    
+    X = default
+    X[:,pos] = params
+    
+    pred = gp.predict(X[None,:]) 
+    
+    return pred
+
+
+def logp(params,pos,default):
+    
+    X = default
+    X[pos] = params
+    
     pred = gp.predict(X[None,:]) 
     
     logp = np.sum(prior.logpdf(X))
@@ -41,8 +55,17 @@ def logp(X):
     
     return logp
     
-nwalkers = 10
-ndim = 5
+
+#%%
+
+default = np.ones(5)*.99
+
+pos = np.array([0,1,4])
+
+ndim = len(pos)
+nwalkers = ndim*2
+
+print(data_obj.Xtrain.columns[pos])
 
 #%%
 
@@ -53,6 +76,7 @@ with Pool() as pool:
         ndim = ndim, 
         log_prob_fn = logp, 
         pool=pool,
+        args=[pos,default]
         )
     
     nsteps = 2000
@@ -66,31 +90,41 @@ with Pool() as pool:
 
 chain = pd.DataFrame(
     sampler.get_chain(flat=True,discard=500),
-    columns = data_obj.Xtrain.columns
+    columns = data_obj.Xtrain.columns[pos]
     )
 
 corner(chain)
 
 #%%
 
-pred_all = gp.predict(chain.values)
+pred_all = pred(chain.values,pos,default)
 
 #%%
 
 idxmax = sampler.get_log_prob(flat=True).argmax()
-be = sampler.get_chain(flat=True)[idxmax]
+be_reds = sampler.get_chain(flat=True)[idxmax]
 
-be[-3] = 1
+be = np.ones(5)
+be[pos] = be_reds
+
 
 #%%
 l= np.linspace(0,.4,2)
 #plt.errorbar(data_obj.meas_v,pred_all.mean(axis=0),yerr=pred_all.std(axis=0),fmt='+')
 plt.plot(l,l)
-plt.plot(data_obj.meas_v,gp.predict(np.ones(5)[None,:]).flatten(),'o')
-plt.plot(data_obj.meas_v,gp.predict(be[None,:]).flatten(),'+')
+plt.plot(data_obj.meas_v,gp.predict(np.ones(5)[None,:]).flatten(),'o',
+         label='Before calibration')
+plt.plot(data_obj.meas_v,gp.predict(be[None,:]).flatten(),'+',
+         label='After calibration'
+         )
 
-# plt.xscale('log')
-# plt.yscale('log')
+plt.legend()
+
+#plt.xscale('log')
+#plt.yscale('log')
+
+plt.xlabel('Measured relative fission gas release[-]')
+plt.ylabel('Predicted relative fission gas release[-]')
 
 #%%
 

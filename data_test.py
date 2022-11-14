@@ -20,7 +20,7 @@ data_obj.process()
 gp = gp_ensamble(
     Xtrain = data_obj.Xtrain.values,
     ytrain = data_obj.ytrain.values,
-    use_cv_alpha=True
+#    use_cv_alpha=True
     )   
 
 gp.fit()
@@ -29,6 +29,10 @@ gp.fit()
 
 pred = gp.predict(data_obj.Xtest.values)
 plt.plot(data_obj.ytest,pred,'+')
+
+#%%
+
+gp.gps[0].predict(np.ones(5)[None,:])
 
 #%%
 

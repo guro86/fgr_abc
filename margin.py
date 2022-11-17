@@ -190,8 +190,10 @@ class margin():
         #Calculate Cov matrix
         cov = S @ corr @ S
         
-        pred = model.predict(mu[None,:]).flatten()
-        J = model.predict_der(mu[None,:])
+        # pred = model.predict(mu[None,:]).flatten()
+        # J = model.predict_der(mu[None,:])
+        
+        pred, J = model.predict_pred_and_der(mu[None,:])
         
         #Transpose derivatives
         JT = J.transpose(0,2,1)
@@ -230,7 +232,7 @@ class reduced_model():
         
         X[pos] = x
         
-        return self.model.predict(X[None,:])
+        return self.model.predict_fast(X[None,:])
     
     def predict_der(self,x):
         
@@ -239,8 +241,18 @@ class reduced_model():
         X = self.default
         X[self.pos] = x
         
-        return self.model.predict_der(X[None,:])[:,:,pos]
+        return self.model.predict_der_fast(X[None,:])[:,:,pos]
     
+    def predict_pred_and_der(self,x):
+    
+        pos = self.pos 
+        
+        X = self.default
+        X[self.pos] = x
+        
+        pred, der = self.model.predict_pred_and_der_fast(X[None,:])
+        
+        return pred, der[:,:,pos]
     
         
 rgp = reduced_model(
@@ -252,19 +264,19 @@ rgp = reduced_model(
 #%%
 
 x0 = np.concatenate((
-    np.array([1,1,.5]),
-    np.ones(3),
+    np.array([0,0,-.7]),
+    np.ones(3)*.1,
     np.zeros(3)
     ))
 
 ub = data_obj.Xtrain.quantile(q=0.99).values[rgp.pos]
 lb = data_obj.Xtrain.quantile(q=0.01).values[rgp.pos]
 
-sd = np.array([0.25927605, 0.63275283, 0.03008127])
-mu = np.array([1.26456655, 5.82954543, 0.58463441])
+sd = np.array([0.12, 0.17, 0.67])
+mu = np.array([0.6,1.25,0.67])
 
 mu_prior = norm(loc=mu,scale=sd)
-sd_prior = halfcauchy(scale=.1)
+sd_prior = halfcauchy(scale=.01)
 
 m = margin(
     d=3,model=rgp,meas_v=data_obj.meas_v,mu_prior=mu_prior,sd_prior=sd_prior,
@@ -288,13 +300,19 @@ plt.plot(l,l)
 nwalkers = 18
 ndim = 9
 
-
 sampler = emcee.EnsembleSampler(
-    nwalkers, ndim, m.update_and_return_logp
+    nwalkers, 
+    ndim, 
+    m.update_and_return_logp,
     )
 
 initial_state = np.random.randn(nwalkers,ndim)*0.01 + x0
-sampler.run_mcmc(initial_state, nsteps=2000,progress=True)
+
+sampler.run_mcmc(
+    initial_state, 
+    nsteps=2000,
+    progress=True,
+    )
 
 
 #%%
@@ -326,9 +344,19 @@ chain = pd.DataFrame(
 
 def sim(x):
     m.update(x.values)
+    
     return pd.Series(
-        multivariate_normal(m.mu,m.cov).rvs()
+        multivariate_normal(m.mu,m.cov,allow_singular=True).rvs()
         )
+   
+    # return np.linalg.det(m.cov)
 
-marg = chain.iloc[:100].apply(sim,axis=1)
+marg = chain.iloc[:].apply(sim,axis=1)
 
+
+#%%
+
+corner(
+       np.exp(marg),
+       range=[(0,10),(0,10),(0,10)]
+)

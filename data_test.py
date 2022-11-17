@@ -7,9 +7,10 @@ Created on Sat Oct 29 09:23:15 2022
 """
 
 import data
-from lib.gp import gp_ensamble
+from lib.gp import gp_ensemble
 import matplotlib.pyplot as plt
 import pickle
+import numpy as np
 
 #%%
 
@@ -17,22 +18,32 @@ data_obj = data.dakota_data()
 data_obj.process()
 
 
-gp = gp_ensamble(
-    Xtrain = data_obj.Xtrain.values,
+gp = gp_ensemble(
+    Xtrain = np.log(data_obj.Xtrain.values),
     ytrain = data_obj.ytrain.values,
-#    use_cv_alpha=True
+    use_cv_alpha=True,
+    n_jobs_alpha = 8
     )   
 
 gp.fit()
 
 #%%
 
-pred = gp.predict(data_obj.Xtest.values)
+pred = gp.predict(
+    np.log(
+        data_obj.Xtest.values
+        )
+    )
 plt.plot(data_obj.ytest,pred,'+')
 
 #%%
 
-gp.gps[0].predict(np.ones(5)[None,:])
+pred = gp.predict_fast(
+    np.log(
+        data_obj.Xtest.values
+        )
+    )
+plt.plot(data_obj.ytest,pred,'+')
 
 #%%
 

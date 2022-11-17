@@ -22,8 +22,8 @@ from multiprocessing import Pool
 with open('gp.p','rb') as f:
     gp, data_obj = pickle.load(f)
 
-lb = data_obj.Xtrain.min()
-ub = data_obj.Xtrain.max()
+lb = np.log(data_obj.Xtrain.min())
+ub = np.log(data_obj.Xtrain.max())
 
 
 #%%
@@ -36,7 +36,7 @@ prior = uniform(loc = lb, scale = ub - lb)
 def pred(params,pos,default):
     
     X = default
-    X[:,pos] = params
+    X[pos] = params
     
     pred = gp.predict(X[None,:]) 
     
@@ -48,7 +48,7 @@ def logp(params,pos,default):
     X = default
     X[pos] = params
     
-    pred = gp.predict(X[None,:]) 
+    pred = gp.predict_fast(X[None,:]) 
     
     logp = np.sum(prior.logpdf(X))
     logp += np.sum(like.logpdf(pred))
@@ -58,7 +58,7 @@ def logp(params,pos,default):
 
 #%%
 
-default = np.ones(5)*.99
+default = np.log(np.ones(5)*.99)
 
 pos = np.array([0,1,4])
 
@@ -79,9 +79,9 @@ with Pool() as pool:
         args=[pos,default]
         )
     
-    nsteps = 2000
+    nsteps = 1000
     
-    initial_state = np.random.randn(nwalkers,ndim)  * 0.01 + .5
+    initial_state = np.log(np.random.randn(nwalkers,ndim)  * 0.01 + .5)
     
     sampler.run_mcmc(initial_state, nsteps, progress=True)
 
@@ -112,11 +112,11 @@ be[pos] = be_reds
 l= np.linspace(0,.4,2)
 #plt.errorbar(data_obj.meas_v,pred_all.mean(axis=0),yerr=pred_all.std(axis=0),fmt='+')
 plt.plot(l,l)
-plt.plot(data_obj.meas_v,gp.predict(np.ones(5)[None,:]).flatten(),'o',
-         label='Before calibration')
-plt.plot(data_obj.meas_v,gp.predict(be[None,:]).flatten(),'+',
-         label='After calibration'
-         )
+plt.plot(data_obj.meas_v,gp.predict(np.log(np.ones(5)[None,:])).flatten(),'o',
+          label='Before calibration')
+plt.plot(data_obj.meas_v,gp.predict((be[None,:])).flatten(),'+',
+          label='After calibration'
+          )
 
 plt.legend()
 

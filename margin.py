@@ -263,8 +263,9 @@ rgp = reduced_model(
     
 #%%
 
+
 x0 = np.concatenate((
-    np.array([0,0,-.7]),
+    np.array([1,1,.5]),
     np.ones(3)*.1,
     np.zeros(3)
     ))
@@ -272,8 +273,12 @@ x0 = np.concatenate((
 ub = data_obj.Xtrain.quantile(q=0.99).values[rgp.pos]
 lb = data_obj.Xtrain.quantile(q=0.01).values[rgp.pos]
 
+
 sd = np.array([0.12, 0.17, 0.67])
+sd = np.array([0.27894827, 1.03073904, 0.03689269])
+
 mu = np.array([0.6,1.25,0.67])
+mu = np.array([2.10743787, 3.231398  , 0.46852582])
 
 mu_prior = norm(loc=mu,scale=sd)
 sd_prior = halfcauchy(scale=.01)

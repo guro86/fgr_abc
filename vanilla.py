@@ -22,8 +22,8 @@ from multiprocessing import Pool
 with open('gp.p','rb') as f:
     gp, data_obj = pickle.load(f)
 
-lb = np.log(data_obj.Xtrain.min())
-ub = np.log(data_obj.Xtrain.max())
+lb = (data_obj.Xtrain.min())
+ub = (data_obj.Xtrain.max())
 
 
 #%%
@@ -31,7 +31,6 @@ like = norm(loc=data_obj.meas_v,scale=0.01)
 prior = uniform(loc = lb, scale = ub - lb)
 
 #%%
-
 
 def pred(params,pos,default):
     
@@ -58,7 +57,7 @@ def logp(params,pos,default):
 
 #%%
 
-default = np.log(np.ones(5)*.99)
+default = (np.ones(5)*.99)
 
 pos = np.array([0,1,4])
 
@@ -81,7 +80,7 @@ with Pool() as pool:
     
     nsteps = 1000
     
-    initial_state = np.log(np.random.randn(nwalkers,ndim)  * 0.01 + .5)
+    initial_state = (np.random.randn(nwalkers,ndim)  * 0.01 + .5)
     
     sampler.run_mcmc(initial_state, nsteps, progress=True)
 

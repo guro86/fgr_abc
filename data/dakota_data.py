@@ -31,6 +31,8 @@ class dakota_data():
         
         self.x_vars = kwargs.get('x_vars',x_vars)
         
+        self.Xtransform = kwargs.get('Xtransform',None)
+        
     def process(self):
 
         #Get base path
@@ -63,6 +65,11 @@ class dakota_data():
         X = dakota_data[x_vars]
         y = dakota_data.drop(x_vars,axis=1)
         
+        Xtransform = self.Xtransform
+        
+        if Xtransform is not None: 
+            X = Xtransform.fit_transform(X)
+        
         
         self.meas = meas
         self.dakota_data = dakota_data
@@ -81,7 +88,6 @@ class dakota_data():
             y,
             **train_test_split_kwargs,
             )
-        
         
         #Store data 
         self.Xtrain = Xtrain

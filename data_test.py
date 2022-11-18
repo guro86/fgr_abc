@@ -11,38 +11,39 @@ from lib.gp import gp_ensemble
 import matplotlib.pyplot as plt
 import pickle
 import numpy as np
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import Normalizer, FunctionTransformer
 
 #%%
 
 data_obj = data.dakota_data()
+
 data_obj.process()
 
+print(data_obj.Xtrain)
+
+#%%
 
 gp = gp_ensemble(
-    Xtrain = np.log(data_obj.Xtrain.values),
+    Xtrain = data_obj.Xtrain.values,
     ytrain = data_obj.ytrain.values,
-    use_cv_alpha=True,
-    n_jobs_alpha = 8
+    # use_cv_alpha=True,
+    # n_jobs_alpha = 8
     )   
 
 gp.fit()
 
 #%%
 
-pred = gp.predict(
-    np.log(
-        data_obj.Xtest.values
-        )
-    )
+pred = gp.predict(data_obj.Xtest.values)
+        
 plt.plot(data_obj.ytest,pred,'+')
 
 #%%
 
 pred = gp.predict_fast(
-    np.log(
         data_obj.Xtest.values
         )
-    )
 plt.plot(data_obj.ytest,pred,'+')
 
 #%%

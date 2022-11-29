@@ -57,9 +57,9 @@ def logp(params,pos,default):
 
 #%%
 
-default = (np.ones(5)*.99)
+default = np.array([0,0,1.5,-1.5,0])
 
-pos = np.array([0,1,4])
+pos = np.array([0,1,2,3,4])
 
 ndim = len(pos)
 nwalkers = ndim*2
@@ -95,6 +95,9 @@ chain = pd.DataFrame(
 corner(chain)
 
 #%%
+corner(trans.transform(chain))
+
+#%%
 
 pred_all = pred(chain.values,pos,default)
 
@@ -108,11 +111,14 @@ be[pos] = be_reds
 
 
 #%%
+
+trans = data_obj.Xtransform
+
 l= np.linspace(0,.4,2)
 #plt.errorbar(data_obj.meas_v,pred_all.mean(axis=0),yerr=pred_all.std(axis=0),fmt='+')
 plt.plot(l,l)
-plt.plot(data_obj.meas_v,gp.predict(np.log(np.ones(5)[None,:])).flatten(),'o',
-          label='Before calibration')
+plt.plot(data_obj.meas_v,gp.predict(trans.transform(np.ones(5)).values[None,:]).flatten(),'o',
+           label='Before calibration')
 plt.plot(data_obj.meas_v,gp.predict((be[None,:])).flatten(),'+',
           label='After calibration'
           )

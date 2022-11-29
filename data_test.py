@@ -10,17 +10,17 @@ import data
 from lib.gp import gp_ensemble
 import matplotlib.pyplot as plt
 import pickle
-import numpy as np
-from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import Normalizer, FunctionTransformer
+from lib.transforms import range_tanh
 
 #%%
 
-data_obj = data.dakota_data()
+trans = range_tanh()
+
+data_obj = data.dakota_data(
+    Xtransform = trans
+    )
 
 data_obj.process()
-
-print(data_obj.Xtrain)
 
 #%%
 

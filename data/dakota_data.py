@@ -68,6 +68,7 @@ class dakota_data():
         Xtransform = self.Xtransform
         
         if Xtransform is not None: 
+            
             X = Xtransform.fit_transform(X)
         
         

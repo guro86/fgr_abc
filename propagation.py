@@ -63,27 +63,31 @@ pred_df = pd.DataFrame(pred)
 be = gp.predict_fast(np.exp(mu_all))
 
 yerr = np.std(pred,axis=0)
-yerr = np.abs(pred_df.quantile(q=[0.05,0.95]) - be)
+yerr = np.abs(pred_df.quantile(q=[0.025,0.975]) - be)
 
 
 l = np.linspace(0,.4)
 
+plt.errorbar(
+    data_obj.meas_v,gp.predict_fast(np.exp(mu_all)),yerr=2*(covy**.5),fmt='+',
+    alpha = .5
+      )
+
+
 plt.errorbar(data_obj.meas_v,gp.predict_fast(np.exp(mu_all)),yerr=yerr,fmt='+')
 
+
 # plt.errorbar(
-#     data_obj.meas_v,gp.predict_fast(np.exp(mu_all)),yerr=(covy**.5),fmt='+',
+#     data_obj.meas_v,gp.predict_fast(np.exp(mu_all)),yerr=pred_df.std(),fmt='+',
 #     alpha = .5
 #     )
 
-plt.errorbar(
-    data_obj.meas_v,gp.predict_fast(np.exp(mu_all)),yerr=pred_df.std(),fmt='+',
-    alpha = .5
-    )
-
 plt.plot(l,l)
 print(pred)
-
+plt.xlabel('Measured fission gas release [-]')
+plt.ylabel('Pred / prog. fission gas release [-]')
 
 #%%
+i = 20
 
-(pred_df - be).iloc[:,20].hist()
+(pred_df - be).iloc[:,1].hist(bins=20)

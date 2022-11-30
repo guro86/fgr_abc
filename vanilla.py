@@ -59,7 +59,7 @@ def logp(params,pos,default):
 
 default = np.array([0,0,1.5,-1.5,0])
 
-pos = np.array([0,1,2,3,4])
+pos = np.array([0,1,4])
 
 ndim = len(pos)
 nwalkers = ndim*2

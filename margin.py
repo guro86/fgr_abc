@@ -24,7 +24,7 @@ import pandas as pd
 #Load data and gaussian process
 with open('gp.p','rb') as f:
     gp, data_obj = pickle.load(f)
-    
+
 #%%
     
 class margin():
@@ -234,6 +234,21 @@ class reduced_model():
         
         return self.model.predict_fast(X[None,:])
     
+    
+    def predict_chain(self,X):
+        
+        default = self.default
+        
+        pos = self.pos
+        
+        Xnew = np.zeros((len(X),len(default)))
+        
+        Xnew[:,:] = default
+        
+        Xnew[:,pos] = X
+        
+        return self.model.predict_fast(Xnew)
+    
     def predict_der(self,x):
         
         pos = self.pos 
@@ -257,7 +272,8 @@ class reduced_model():
         
 rgp = reduced_model(
     model=gp,
-    pos = np.array([0,1,4])
+    pos = np.array([0,1,4]),
+    default = np.zeros(5)
     )
    
     
@@ -265,7 +281,7 @@ rgp = reduced_model(
 
 
 x0 = np.concatenate((
-    np.array([0,0,0]),
+    np.array([-1.5,-.4,0.1]),
     np.ones(3)*.1,
     np.zeros(3)
     ))
@@ -368,3 +384,28 @@ corner(
        marg,
        # range=[(0,10),(0,10),(0,10)]
 )
+
+#%%
+
+marg_trans = \
+    data_obj.Xtransform.inverse_transform(marg)[['diff', 'gb_saturation', 'crack']]
+
+corner(
+       marg_trans,
+       # range=[(0,10),(0,10),(0,10)]
+)
+
+#%%
+
+chain_y = rgp.predict_chain(marg_trans.values)
+
+#%%
+
+q = np.quantile(chain_y,[0.05,0.95,.5],axis=0)
+
+yerr = np.abs(q[-1] - q[:2])
+
+l = np.linspace(0,.4,2)
+plt.plot(l,l,'--')
+plt.errorbar(data_obj.meas_v,q[-1,:],yerr=yerr,fmt='o')
+#plt.plot(data_obj.meas_v,q[-2,:])

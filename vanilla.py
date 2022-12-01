@@ -10,7 +10,6 @@ Created on Tue Nov  1 15:58:15 2022
 import emcee 
 from scipy.stats import norm, uniform
 import pickle
-import emcee 
 import numpy as np
 import seaborn as sns
 from corner import corner
@@ -20,10 +19,18 @@ from multiprocessing import Pool
 
 #%%
 with open('gp.p','rb') as f:
-    gp, data_obj = pickle.load(f)
+    stored = pickle.load(f)
+    
+    gp = stored['gp_trans']
+    data_obj = stored['data_obj']
+    trans = stored['trans']
+    
 
-lb = (data_obj.Xtrain.min())
-ub = (data_obj.Xtrain.max())
+#lb = (data_obj.Xtrain.min())
+#ub = (data_obj.Xtrain.max())
+
+lb = np.ones(5)*-1.8
+ub = np.ones(5)*1.8
 
 
 #%%
@@ -57,7 +64,7 @@ def logp(params,pos,default):
 
 #%%
 
-default = np.array([0,0,1.5,-1.5,0])
+default = np.array([0,0,1.8,-1.05,0])
 
 pos = np.array([0,1,4])
 
@@ -80,7 +87,7 @@ with Pool() as pool:
     
     nsteps = 1000
     
-    initial_state = (np.random.randn(nwalkers,ndim)  * 0.01 + .5)
+    initial_state = (np.random.randn(nwalkers,ndim)  * 0.01 + 0)
     
     sampler.run_mcmc(initial_state, nsteps, progress=True)
 
@@ -112,12 +119,10 @@ be[pos] = be_reds
 
 #%%
 
-trans = data_obj.Xtransform
-
 l= np.linspace(0,.4,2)
 #plt.errorbar(data_obj.meas_v,pred_all.mean(axis=0),yerr=pred_all.std(axis=0),fmt='+')
 plt.plot(l,l)
-plt.plot(data_obj.meas_v,gp.predict(trans.transform(np.ones(5)).values[None,:]).flatten(),'o',
+plt.plot(data_obj.meas_v,gp.predict(trans.transform(np.ones(5))[None,:]).flatten(),'o',
            label='Before calibration')
 plt.plot(data_obj.meas_v,gp.predict((be[None,:])).flatten(),'+',
           label='After calibration'

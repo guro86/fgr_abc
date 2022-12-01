@@ -21,9 +21,13 @@ import pandas as pd
 
 #%%
 
-#Load data and gaussian process
 with open('gp.p','rb') as f:
-    gp, data_obj = pickle.load(f)
+    stored = pickle.load(f)
+    
+    gp = stored['gp_trans']
+    data_obj = stored['data_obj']
+    trans = stored['trans']
+    
 
 #%%
     
@@ -273,7 +277,7 @@ class reduced_model():
 rgp = reduced_model(
     model=gp,
     pos = np.array([0,1,4]),
-    default = np.zeros(5)
+    default = np.array([0,0,1.8,-1.05,0])
     )
    
     
@@ -375,7 +379,7 @@ def sim(x):
     # return np.linalg.det(m.cov)
 
 marg = chain.iloc[:].apply(sim,axis=1)
-#%%
+
 marg.columns = ['diff', 'gb_saturation', 'crack']
 
 #%%
@@ -386,9 +390,14 @@ corner(
 )
 
 #%%
+Xnew = np.ones((len(marg),5))
+Xnew[:] = rgp.default
+Xnew[:,rgp.pos] = marg.values
+
+#%%
 
 marg_trans = \
-    data_obj.Xtransform.inverse_transform(marg)[['diff', 'gb_saturation', 'crack']]
+    trans.inverse_transform(Xnew)[:,rgp.pos]
 
 corner(
        marg_trans,
@@ -397,7 +406,7 @@ corner(
 
 #%%
 
-chain_y = rgp.predict_chain(marg_trans.values)
+chain_y = rgp.predict_chain(marg)
 
 #%%
 
@@ -409,3 +418,10 @@ l = np.linspace(0,.4,2)
 plt.plot(l,l,'--')
 plt.errorbar(data_obj.meas_v,q[-1,:],yerr=yerr,fmt='o')
 #plt.plot(data_obj.meas_v,q[-2,:])
+
+yerr = (m.cov_y+0.01**2)**.5
+plt.errorbar(m.meas_v,m.pred,fmt='+',yerr=yerr)
+
+#%%
+plt.plot(l,l,'--')
+plt.plot(data_obj.meas_v,q[1],'o')

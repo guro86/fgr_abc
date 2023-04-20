@@ -13,6 +13,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 import pandas as pd
+from scipy.stats import norm
 
 #%%
 
@@ -51,7 +52,45 @@ gp.fit()
 #%%
 plt.plot(data_obj.ytest,
          gp.predict_fast(scaler.transform(Xtest)),
-         'o'
+         '+'
          )
 
 #%%
+
+dist = norm(loc=np.zeros(5),scale=.1)
+
+X = dist.rvs((31,5))
+
+M = 59
+
+
+#%%
+
+#Candidate samples from the prior M x 5
+x_cand = dist.rvs((M,5))
+
+#Samples to evaluate 31 x M x 5
+X_eval = X[:,None,:] * np.ones(M)[:,None]
+
+#%%
+
+d = 0
+
+x_cand_d = np.ones(31)[:,None] * x_cand[:,d]
+
+X_eval_d = X_eval
+
+X_eval_d[:,:,d] = x_cand_d
+
+
+#%%
+
+def test(x,y):
+
+    y = int(y)
+    
+    return np.array(gp.predict_i(x,y))
+
+vec = np.vectorize(test,signature='(j,k),(0)->(1)')
+
+test = vec(X_eval_d,np.arange(31)[:,None])

@@ -65,9 +65,10 @@ class gp_ensemble():
 
         #Scale the X data
         X_scaled = (X / length_scales[:,None,:])
-                
+               
         #Square and sum
-        X_scaled_squared_sum = np.sum(X_scaled ** 2,axis=-1)
+        # X_scaled_squared_sum = np.sum(X_scaled ** 2,axis=-1)
+        X_scaled_squared_sum = (X_scaled ** 2).sum(axis=-1)
           
         #Calculate the dot-product between the scaled vectors
         scaled_dot = Xtrain_scaled @ X_scaled.transpose(0,2,1)
@@ -190,6 +191,15 @@ class gp_ensemble():
         
         #Return
         return J
+    
+    def predict_i(self,X,i):
+        
+        #Get the gp
+        gp = self.gps[i]
+        
+        #Return the prediction of the ith gp
+        return gp.predict(X)
+                
     
     def sample_y(self,X):
         

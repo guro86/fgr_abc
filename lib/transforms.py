@@ -12,6 +12,57 @@ from sklearn.base import BaseEstimator, TransformerMixin
 
 #%%
 
+class logit(BaseEstimator,TransformerMixin):
+    
+    def __init__(self,**kwargs):
+        
+        self.Xmin = kwargs.get('Xmin')
+        self.Xmax = kwargs.get('Xmax') 
+        
+        self.tol = kwargs.get('tol',1e-10)
+        
+    def fit(self,X,y=None):
+            
+        Xmin = X.min(axis=0)
+        Xmax = X.max(axis=0)
+                
+        self.Xmin = Xmin
+        self.Xmax = Xmax
+        
+        return self
+    
+    
+    def transform(self,X,y=None):
+        
+        tol = self.tol
+        
+        Xmin = self.Xmin - tol
+        Xmax = self.Xmax + tol
+        
+        #Scale between 0 and 1
+        Xtrans = (X - Xmin) / (Xmax - Xmin)
+        
+        #Calculate transform
+        Xtrans = np.log(Xtrans/(1-Xtrans)) 
+        
+        #Return transform
+        return Xtrans
+        
+    def inverse_transform(self,Xtrans,y=None):
+        
+        Xmin = self.Xmin
+        Xmax = self.Xmax
+        
+        #Get value between 0 and 1 
+        X = np.exp(Xtrans) / (np.exp(Xtrans) + 1)
+        
+        #Scale back
+        X = X * (Xmax - Xmin) + Xmin
+        
+        #Return inverse transformed
+        return X
+        
+
 class range_tanh(BaseEstimator,TransformerMixin):
     
     def __init__(self,alpha=1,eps_range=1.05,**kwargs):
@@ -69,9 +120,11 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt 
     
     trans = range_tanh(Xmax=np.array([40]),Xmin=np.array([1/40]),
-                       alpha=1,eps=1.05,X0=1)
+                       alpha=1,eps_range=1.05)
     
-    X = np.linspace(1/40,40,100)
+    trans = logit(Xmax=np.array([40]),Xmin=np.array([1/40]))
+    
+    X = np.linspace(1/40,40,100000)
     Xtrans = trans.transform(X)
     X2 = trans.inverse_transform(Xtrans)
     

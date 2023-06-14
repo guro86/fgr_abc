@@ -18,263 +18,49 @@ from corner import corner
 from multiprocessing import Pool
 from scipy.stats import multivariate_normal
 import pandas as pd
+from lib import margin
+from lib import model_wrapper
+import data
+from lib.gp import gp_ensemble
+from lib.transforms import range_tanh, logit
 
 #%%
 
-with open('gp.p','rb') as f:
-    stored = pickle.load(f)
-    
-    gp = stored['gp_trans']
-    data_obj = stored['data_obj']
-    trans = stored['trans']
-    
+data_obj = data.dakota_data()
+data_obj.process()
 
-#%%
-    
-class margin():
-    
-    def __init__(self,**kwargs):
-        
-        #Dimensions
-        self.d = kwargs.get('d',3)
-        
-        #Eta parameter
-        self.eta = kwargs.get('eta',10)
-        
-        #Cov, corr, p, sd, and mu
-        self.cov = np.eye(self.d) 
-        self.corr = np.eye(self.d) 
-        self.p = np.ones(self.d)
-        self.sd = np.ones(self.d)
-        self.mu = np.ones(self.d) 
-        
-        self.R = kwargs.get('R',0.01)
-        
-        self.sd_prior = kwargs.get('sd_prior',None)
-        self.mu_prior = kwargs.get('mu_prior',None)
+#Get the Xtrain and Xtest 
+Xtrain = data_obj.Xtrain.values
+Xtest = data_obj.Xtest.values
 
-        #lower indices of cholesky composition
-        self.tril_indices = np.tril_indices(self.d,k=-1)
-        
-        #The forward model
-        #Predicts values and derivatives
-        self.model=kwargs.get('model')
-        
-        #The measurements
-        self.meas_v = kwargs.get('meas_v')
-        
-        #Number of correlations 
-        self.num_corr = int((self.d**2 - self.d)/2)
-        
-        #Total number of parameters
-        self.total_parameters = 2*self.d + self.num_corr
-        
-        
-    def lkj_prior(self):
-        
-        #Get correlation matrix
-        corr = self.corr
-        eta = self.eta 
-        
-        #Calculate the determinantn 
-        det = np.linalg.det(corr)
-        
-        #If det is positive
-        if det>0:
-            
-            #Calculate and return logp
-            return (eta-1) * np.log(det)
-        
-        else:
-            
-            #Else return -np.inf
-            return -np.inf
-        
-        
-    def like(self):
-        
-        #Get propaged errors
-        cov_y = self.cov_y
-        
-        #Predictions
-        pred = self.pred
-        
-        #Measurements 
-        meas_v = self.meas_v
-        
-        #Mesurement error/erros
-        R = self.R
-        
-        #Calculate the error on the output in terms of sd
-        scale = (cov_y + R**2)**.5
-        
-        #Scale the error 
-        #res = (meas_v - pred)/scale
-                
-        #Return logp
-        logp = np.sum(norm(loc=meas_v,scale=scale).logpdf(pred))
-        
-        #Just checking that the error when propagated is 
-        #positive
-        if cov_y.min() < 0: 
-            return -np.inf
-        else:
-            return logp
-    
-    def logp(self):
-        
-        #Start with zero logp
-        logp = 0
-        
-        #Add the logp of the lkj prior
-        logp += self.lkj_prior()
-        
-        #If we have a sd prior, add
-        if self.sd_prior:
-            logp += np.sum(
-                self.sd_prior.logpdf(self.sd)
-                )
-            
-        #If we have a mu priro add
-        if self.mu_prior:
-            logp += np.sum(
-                self.mu_prior.logpdf(self.mu)
-                )
-        
-        #if the we have a finite logp add likelihood
-        if np.isfinite(logp):
-            logp += self.like()
-        
-        #If the likelihood is nan, set it to -inf
-        if np.isnan(logp):
-            #import pdb; pdb.set_trace()
-            logp = -np.inf
-        
-        return logp
-        
-    def update_and_return_logp(self,x):
-        
-        self.update(x)
-        
-        return self.logp()
-        
-    def update(self,x):
-        
-        #Dimensions
-        d = self.d
-        
-        #Get model
-        model = self.model
-        
-        #Total parameters
-        total_parameters = self.total_parameters
+#measurements 
+meas_v = data_obj.meas_v
 
-        #Lower indices
-        tril_indices = self.tril_indices
-        
-        #Correlations matrix
-        corr = self.corr
-        
-        #Number of correlations
-        num_corr = self.num_corr
-        
-        if len(x) != total_parameters:
-            raise ValueError('Unvalid lenght of x')
-        
-        mu = x[:d]
-        sd = x[d:2*d]
-        p = x[-num_corr:]
+trans = logit()
+trans.fit(Xtrain)
 
-        corr[tril_indices] = p
-        corr[tril_indices[::-1]] = p
-        
-        #Calculate the S matrix
-        S = np.diag(sd)
-        
-        #Calculate Cov matrix
-        cov = S @ corr @ S
-        
-        # pred = model.predict(mu[None,:]).flatten()
-        # J = model.predict_der(mu[None,:])
-        
-        pred, J = model.predict_pred_and_der(mu[None,:])
-        
-        #Transpose derivatives
-        JT = J.transpose(0,2,1)
-        
-        #Covy
-        cov_y = (J @ cov @ JT).flatten()
-        
-        self.cov = cov
-        self.corr = corr
-        self.sd = sd
-        self.mu = mu
-        self.pred = pred 
-        self.J = J
-        self.cov_y = cov_y
+#Create a gp
+gp = gp_ensemble(
+    Xtrain = trans.transform(Xtrain),
+    ytrain = data_obj.ytrain.values,
+    )   
+
+#Fit the gp
+gp.fit()
 
 #%%
 
-class reduced_model():
-    
-    def __init__(self,**kwargs):
+sns.pairplot(trans.transform(data_obj.Xtrain))
+
+#%%
+plt.plot(data_obj.ytest,
+         gp.predict_fast(trans.transform(Xtest)),
+         '+'
+         )
+
+#%%
         
-        self.default = kwargs.get(
-            'default',
-            np.array([1,1,1,1,1])*.99
-            )
-        
-        self.pos = kwargs.get('pos',[0,1,2])
-        self.model = kwargs.get('model',None)
-    
-    def predict(self,x):
-        
-        default = self.default
-        pos = self.pos
-        
-        X = default
-        
-        X[pos] = x
-        
-        return self.model.predict_fast(X[None,:])
-    
-    
-    def predict_chain(self,X):
-        
-        default = self.default
-        
-        pos = self.pos
-        
-        Xnew = np.zeros((len(X),len(default)))
-        
-        Xnew[:,:] = default
-        
-        Xnew[:,pos] = X
-        
-        return self.model.predict_fast(Xnew)
-    
-    def predict_der(self,x):
-        
-        pos = self.pos 
-        
-        X = self.default
-        X[self.pos] = x
-        
-        return self.model.predict_der_fast(X[None,:])[:,:,pos]
-    
-    def predict_pred_and_der(self,x):
-    
-        pos = self.pos 
-        
-        X = self.default
-        X[self.pos] = x
-        
-        pred, der = self.model.predict_pred_and_der_fast(X[None,:])
-        
-        return pred, der[:,:,pos]
-    
-        
-rgp = reduced_model(
+rgp = model_wrapper(
     model=gp,
     pos = np.array([0,1,4]),
     default = np.array([0,0,1.8,-1.05,0])
@@ -321,6 +107,17 @@ yerr = (m.cov_y+m.R**2)**.5
 plt.errorbar(m.meas_v,m.pred,fmt='+',yerr=yerr)
 plt.plot(l,l)
 
+#%%
+l = np.linspace(0,.4,2)
+
+plt.plot(m.meas_v,m.pred,'o')
+plt.plot(l,l)
+
+plt.xlabel('Measured fission gas release [-]')
+plt.ylabel('Predicted fission gas release [-]')
+
+plt.xscale('log')
+plt.yscale('log')
 
 #%%
 
@@ -340,7 +137,6 @@ sampler.run_mcmc(
     nsteps=2000,
     progress=True,
     )
-
 
 #%%
 corner(sampler.get_chain(flat=True),discard=500,dpi=300)
@@ -410,17 +206,92 @@ chain_y = rgp.predict_chain(marg)
 
 #%%
 
+idxmax = sampler.get_log_prob(flat=True).argmax()
+x = sampler.get_chain(flat=True)[idxmax]
+
+m.update(x)
+
 q = np.quantile(chain_y,[0.05,0.95,.5],axis=0)
 
 yerr = np.abs(q[-1] - q[:2])
 
 l = np.linspace(0,.4,2)
 plt.plot(l,l,'--')
-plt.errorbar(data_obj.meas_v,q[-1,:],yerr=yerr,fmt='o')
+plt.errorbar(data_obj.meas_v,q[-1,:],yerr=yerr,fmt='o',label='Monte Carlo')
+#plt.plot(data_obj.meas_v,q[-2,:])
+
+yerr = 1.64*(m.cov_y+0.01**2)**.5
+plt.errorbar(m.meas_v,m.pred,fmt='+',yerr=yerr,label='Sandwich')
+
+plt.legend()
+
+plt.xlabel('Measured fission gas release [-]')
+plt.ylabel('Predicted fission gas release [-]')
+
+#%%
+
+
+idxmax = sampler.get_log_prob(flat=True).argmax()
+x = sampler.get_chain(flat=True)[idxmax]
+
+m.update(x)
+
+q = np.quantile(chain_y,[0.05,0.95,.5],axis=0)
+
+yerr = chain_y.std(axis=0)
+
+l = np.linspace(0,.4,2)
+plt.plot(l,l,'--')
+plt.errorbar(data_obj.meas_v,q[-1,:],capsize=5,
+             yerr=yerr,fmt='o',label='Monte Carlo')
 #plt.plot(data_obj.meas_v,q[-2,:])
 
 yerr = (m.cov_y+0.01**2)**.5
-plt.errorbar(m.meas_v,m.pred,fmt='+',yerr=yerr)
+plt.errorbar(m.meas_v,m.pred,fmt='o',yerr=yerr,label='Sandwich',
+             capsize=5)
+
+plt.legend()
+
+plt.xlabel('Measured fission gas release [-]')
+plt.ylabel('Predicted fission gas release [-]')
+
+#%%
+
+plt.plot(m.cov_y**.5,chain_y.std(axis=0),'o')
+
+plt.ylabel('Monte Carlo std.')
+plt.xlabel('Sandwich std.')
+
+l = np.linspace(0,0.06,2)
+plt.plot(l,l,'--')
+
+
+#%%
+
+idxmax = sampler.get_log_prob(flat=True).argmax()
+x = sampler.get_chain(flat=True)[idxmax]
+
+m.update(x)
+
+q = np.quantile(chain_y,[0.05,0.95,.5],axis=0)
+
+yerr = np.abs(q[-1] - q[:2])
+
+l = np.linspace(0,.4,2)
+plt.plot(l,l,'--')
+plt.errorbar(data_obj.meas_v,q[-1,:],
+             alpha = .2,
+             yerr=yerr,fmt='o',label='Monte Carlo')
+
+plt.plot(data_obj.meas_v,q[0,:],'o')
+
+plt.plot(data_obj.meas_v,q[1,:],'o')
+
+plt.legend()
+
+plt.xlabel('Measured fission gas release [-]')
+plt.ylabel('Predicted fission gas release [-]')
+
 
 #%%
 plt.plot(l,l,'--')
